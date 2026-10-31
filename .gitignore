@@ -1,2 +1,7 @@
 config.json
 state.json
+.env
+
+# Ignore Python cache folders anywhere in the project
+__pycache__/
+*.pyc
