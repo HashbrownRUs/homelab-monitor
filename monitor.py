@@ -9,6 +9,8 @@ from pathlib import Path
 import sys
 import urllib.request
 
+from dotenv import load_dotenv
+
 from checks import execute, http, ping, tcp
 
 BASE = Path(__file__).resolve().parent
@@ -48,6 +50,7 @@ def send_webhook(url, message, timeout):
 
 
 def main():
+    load_dotenv(BASE / '.env', override=False)
     parser = argparse.ArgumentParser(description='Check home-lab devices and services')
     parser.add_argument('--config', type=Path, default=BASE / 'config.json')
     parser.add_argument('--state', type=Path, default=BASE / 'state.json')

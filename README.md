@@ -1,6 +1,6 @@
 ﻿# Home Lab Monitor
 
-Python 3 home-lab monitor using only the standard library. Checks ICMP ping on Windows and Linux, TCP ports, and HTTP(S) endpoints. Prints a status report and optionally sends webhook alerts when checks fail or recover.
+Python 3 home-lab monitor with `.env` support through `python-dotenv`. Checks ICMP ping on Windows and Linux, TCP ports, and HTTP(S) endpoints. Prints a status report and optionally sends webhook alerts when checks fail or recover.
 
 ## Setup
 
@@ -10,6 +10,8 @@ Run commands from the project directory. On Ubuntu, install Python and ping:
 sudo apt update
 sudo apt install -y python3 iputils-ping
 ```
+
+Install the Python dependency with `python -m pip install -r requirements.txt`.
 
 Edit `config.json` with your device addresses, ports, and checks. Use `example_config.json` as a reference and remove checks for services you do not run.
 
@@ -139,3 +141,14 @@ python monitor.py
 ```
 
 For multiple routers with different credentials, set `username_env` and `password_env` on each check to the appropriate environment variable names. Run all tests with `python -m unittest discover -v`.
+
+## Environment file
+
+The monitor automatically loads `.env` beside `monitor.py` before running checks. Existing environment variables take priority. `.env` is already excluded from Git.
+
+```dotenv
+MIKROTIK_USERNAME=monitor
+MIKROTIK_PASSWORD=your-password
+```
+
+You can also set `HOMELAB_WEBHOOK_URL` in this file.
