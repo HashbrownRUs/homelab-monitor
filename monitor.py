@@ -6,75 +6,12 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
-import platform
-import socket
-import ssl
-import subprocess
 import sys
-import urllib.error
 import urllib.request
 
+from checks import execute, http, ping, tcp
+
 BASE = Path(__file__).resolve().parent
-
-
-def ping(host, timeout):
-    """Run the system ping command on Windows or Linux."""
-    system = platform.system().lower()
-    if system == 'windows':
-        # Windows: -n count, -w timeout in milliseconds.
-        command = ['ping', '-n', '1', '-w', str(max(1, int(timeout * 1000))), host]
-    elif system == 'linux':
-        # Linux iputils: -c count, -W timeout in seconds, -n numeric output.
-        command = ['ping', '-n', '-c', '1', '-W', str(max(1, int(timeout + 0.999))), host]
-    else:
-        return False, f'Unsupported OS for ping: {platform.system()}'
-
-    try:
-        cp = subprocess.run(command, stdout=subprocess.DEVNULL,
-                            stderr=subprocess.PIPE, text=True,
-                            timeout=timeout + 2)
-        return (cp.returncode == 0,
-                'ICMP reply' if cp.returncode == 0 else 'No ICMP reply')
-    except FileNotFoundError:
-        return False, 'ping command not found'
-    except subprocess.TimeoutExpired:
-        return False, 'Ping timed out'
-    except OSError as exc:
-        return False, f'Ping error: {exc}'
-
-
-def tcp(host, port, timeout):
-    try:
-        with socket.create_connection((host, int(port)), timeout=timeout):
-            return True, f'TCP {port} accepting connections'
-    except OSError as exc:
-        return False, f'TCP {port}: {exc}'
-
-
-def http(url, timeout, verify_tls):
-    ctx = None if verify_tls else ssl._create_unverified_context()
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'HomelabMonitor/1.0'})
-        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as response:
-            code = response.status
-            return (200 <= code < 400), f'HTTP {code}'
-    except urllib.error.HTTPError as exc:
-        if exc.code in (401, 403):
-            return True, f'HTTP {exc.code} (authentication required)'
-        return False, f'HTTP {exc.code}'
-    except Exception as exc:
-        return False, str(exc)
-
-
-def execute(item, timeout):
-    kind = item['type'].lower()
-    if kind == 'ping':
-        return ping(item['host'], timeout)
-    if kind == 'tcp':
-        return tcp(item['host'], item['port'], timeout)
-    if kind == 'http':
-        return http(item['url'], timeout, item.get('verify_tls', True))
-    return False, f'Unsupported check type: {kind}'
 
 
 def check_device(device, timeout):
@@ -85,7 +22,7 @@ def check_device(device, timeout):
         except (KeyError, ValueError, TypeError, AttributeError) as exc:
             ok, details = False, f'Invalid configuration: {exc}'
         checks.append({'name': item.get('name', item.get('type', 'unnamed')),
-                       'ok': ok, 'details': details})
+                       'ok': ok, 'warning': ok and details.startswith('WARNING:'), 'details': details})
     return {'name': device['name'], 'ok': all(c['ok'] for c in checks), 'checks': checks}
 
 
@@ -94,7 +31,7 @@ def format_report(results, timestamp):
     for device in results:
         lines.append(f"{'OK  ' if device['ok'] else 'FAIL'}  {device['name']}")
         for c in device['checks']:
-            lines.append(f"    {'OK  ' if c['ok'] else 'FAIL'} {c['name']}: {c['details']}")
+            lines.append(f"    {'WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL'} {c['name']}: {c['details']}")
     n = sum(not x['ok'] for x in results)
     lines.append('-' * 60)
     lines.append(f'{len(results) - n}/{len(results)} devices healthy; {n} failing')
@@ -141,7 +78,7 @@ def main():
     else:
         print(report)
 
-    current = {d['name']: {c['name']: c['ok'] for c in d['checks']} for d in results}
+    current = {d['name']: {c['name']: ('warning' if c.get('warning') else c['ok']) for c in d['checks']} for d in results}
     try:
         previous = json.loads(args.state.read_text(encoding='utf-8')) if args.state.exists() else {}
     except (OSError, ValueError):

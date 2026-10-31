@@ -4,32 +4,92 @@
     {
       "name": "Router",
       "checks": [
-        {"name": "Gateway ping", "type": "ping", "host": "192.168.0.1"},
-        {"name": "HTTPS management", "type": "tcp", "host": "192.168.0.1", "port": 443}
+        {
+          "name": "Gateway ping",
+          "type": "ping",
+          "host": "192.168.0.1"
+        },
+        {
+          "name": "HTTPS management",
+          "type": "tcp",
+          "host": "192.168.0.1",
+          "port": 443
+        },
+        {
+          "name": "MikroTik resources",
+          "type": "mikrotik",
+          "url": "https://192.168.0.1",
+          "cafile": "/home/aaron/cert_export_homelab-ca.crt",
+          "cpu_warn_percent": 80,
+          "memory_warn_percent": 85,
+          "disk_warn_percent": 90
+        }
       ]
     },
     {
       "name": "NAS",
       "checks": [
-        {"name": "NAS reachable", "type": "ping", "host": "192.168.0.20"},
-        {"name": "SMB file sharing", "type": "tcp", "host": "192.168.0.20", "port": 445}
+        {
+          "name": "NAS reachable",
+          "type": "ping",
+          "host": "192.168.0.20"
+        },
+        {
+          "name": "SMB file sharing",
+          "type": "tcp",
+          "host": "192.168.0.20",
+          "port": 445
+        }
       ]
     },
     {
       "name": "Ubuntu database server",
       "checks": [
-        {"name": "Server reachable", "type": "ping", "host": "192.168.0.50"},
-        {"name": "SSH", "type": "tcp", "host": "192.168.0.50", "port": 22},
-        {"name": "MySQL", "type": "tcp", "host": "192.168.0.50", "port": 3306},
-        {"name": "PostgreSQL", "type": "tcp", "host": "192.168.0.50", "port": 5432},
-        {"name": "SQL Server", "type": "tcp", "host": "192.168.0.50", "port": 1433}
+        {
+          "name": "Server reachable",
+          "type": "ping",
+          "host": "192.168.0.50"
+        },
+        {
+          "name": "SSH",
+          "type": "tcp",
+          "host": "192.168.0.50",
+          "port": 22
+        },
+        {
+          "name": "MySQL",
+          "type": "tcp",
+          "host": "192.168.0.50",
+          "port": 3306
+        },
+        {
+          "name": "PostgreSQL",
+          "type": "tcp",
+          "host": "192.168.0.50",
+          "port": 5432
+        },
+        {
+          "name": "SQL Server",
+          "type": "tcp",
+          "host": "192.168.0.50",
+          "port": 1433
+        }
       ]
     },
     {
       "name": "Omada Controller",
       "checks": [
-        {"name": "Controller reachable", "type": "ping", "host": "192.168.0.10"},
-        {"name": "Controller web UI", "type": "tcp", "host": "192.168.0.10", "port": 8043}
+        {
+          "name": "Controller reachable",
+          "type": "ping",
+          "host": "192.168.0.10"
+        },
+        {
+          "name": "Controller web UI",
+          "type": "tcp",
+          "host": "192.168.0.10",
+          "port": 8043
+        }
       ]
     }
   ]

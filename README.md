@@ -33,7 +33,12 @@ Each device needs a `name` and a nonempty `checks` list. Supported check types:
 | --- | --- | --- |
 | `ping` | `host` | The host replies to ping |
 | `tcp` | `host`, `port` | A TCP connection succeeds |
+| `mikrotik` | `url` (HTTPS router base URL) | REST resources can be read; high usage produces warnings |
 | `http` | `url` | HTTP status is 200–399, 401, or 403 |
+
+Check implementations live in `checks/ping.py`, `checks/tcp.py`, and `checks/http.py`.
+
+For TCP port 80 and HTTP URLs using port 80 (including the default port), the monitor always also checks HTTPS port 443 on the same host. At least one must pass. If port 80 fails but 443 passes, the result is a warning that HTTP may be disabled on purpose. If only port 80 passes, the result warns that HTTPS failed. Warnings appear as `WARN` in text and `warning: true` in JSON, without a failing exit code. HTTP checks preserve the path, query, and TLS verification setting for the HTTPS request. Other ports and explicitly configured HTTPS checks retain their normal failure behavior.
 
 Checks can have an optional `name`. A device is healthy only when all its checks pass. `timeout_seconds` defaults to 3 and must be positive and finite.
 
@@ -97,4 +102,40 @@ On Windows, use Task Scheduler to run Python with the full path to `monitor.py` 
 python -m unittest test_monitor.py
 ```
 
-Tests verify Windows and Linux ping command arguments and unsupported OS handling. They simulate ping responses without contacting devices.
+Tests verify ping platform handling, web port availability combinations, HTTPS fallback, and warning reports without contacting devices.
+
+## MikroTik resource monitoring
+
+Enable the RouterOS REST API through `www-ssl` and use a monitoring account with permission to read system resources. The check performs an authenticated GET to `/rest/system/resource` and validates the server certificate and hostname with your CA. See the [official MikroTik REST documentation](https://manual.mikrotik.com/docs/developer-guides/rest-api/).
+
+Add this check to your router's `checks` list (also included in `example_config.json`):
+
+```json
+{
+  "name": "MikroTik resources",
+  "type": "mikrotik",
+  "url": "https://192.168.0.1",
+  "cafile": "/home/aaron/cert_export_homelab-ca.crt",
+  "cpu_warn_percent": 80,
+  "memory_warn_percent": 85,
+  "disk_warn_percent": 90
+}
+```
+
+Use a URL hostname or IP covered by the router certificate. The CA path above is the default; override `cafile` when running elsewhere, including Windows. Thresholds are configurable starting points for CPU load, memory used, and disk used, not manufacturer limits. Values strictly above a threshold produce `WARN`, retain a healthy exit status, and trigger a notification when entering or leaving warning state. API, authentication, TLS, and malformed resource responses fail the check. Reports display CPU, memory, disk, and available model, version, and uptime fields.
+
+Set credentials in the process environment before running the monitor:
+
+```bash
+export MIKROTIK_USERNAME='monitor'
+export MIKROTIK_PASSWORD='your-password'
+python3 monitor.py
+```
+
+```powershell
+$env:MIKROTIK_USERNAME = 'monitor'
+$env:MIKROTIK_PASSWORD = 'your-password'
+python monitor.py
+```
+
+For multiple routers with different credentials, set `username_env` and `password_env` on each check to the appropriate environment variable names. Run all tests with `python -m unittest discover -v`.
