@@ -50,6 +50,30 @@ class MikroTikTests(unittest.TestCase):
                 self.assertTrue(result['ok'])
                 self.assertTrue(result['checks'][0]['warning'])
 
+    def test_resource_report_separate_from_checks(self):
+        self.respond()
+        result = monitor.check_device({'name': 'router', 'checks': [self.item]}, 2)
+        report = monitor.format_report([result], 'now')
+        self.assertIn('    Resources:', report)
+        self.assertIn('            CPU 10.0%', report)
+        self.assertNotIn('OK   mikrotik:', report)
+        self.assertNotIn('WARN', report)
+
+    def test_resource_warning_in_checks(self):
+        self.respond(dict(self.resource, **{'cpu-load': '81'}))
+        result = monitor.check_device({'name': 'router', 'checks': [self.item]}, 2)
+        report = monitor.format_report([result], 'now')
+        self.assertIn('WARN mikrotik: cpu 81.0% exceeds 80%', report)
+        self.assertIn('    Resources:', report)
+        self.assertIn('            CPU 81.0%', report)
+
+    def test_resource_failure_in_checks(self):
+        self.opener.open.side_effect = urllib.error.HTTPError('https://router', 401, 'Unauthorized', {}, None)
+        result = monitor.check_device({'name': 'router', 'checks': [self.item]}, 2)
+        report = monitor.format_report([result], 'now')
+        self.assertIn('FAIL mikrotik: MikroTik REST HTTP 401', report)
+        self.assertNotIn('    Resources:', report)
+
     def test_threshold_boundary_and_override(self):
         self.respond()
         ok, details = monitor.execute(dict(self.item, cpu_warn_percent=10), 2)

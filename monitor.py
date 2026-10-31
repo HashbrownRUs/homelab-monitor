@@ -23,7 +23,8 @@ def check_device(device, timeout):
             ok, details = execute(item, timeout)
         except (KeyError, ValueError, TypeError, AttributeError) as exc:
             ok, details = False, f'Invalid configuration: {exc}'
-        checks.append({'name': item.get('name', item.get('type', 'unnamed')),
+        checks.append({'resource': item.get('type', '').lower() == 'mikrotik',
+                       'name': item.get('name', item.get('type', 'unnamed')),
                        'ok': ok, 'warning': ok and details.startswith('WARNING:'), 'details': details})
     return {'name': device['name'], 'ok': all(c['ok'] for c in checks), 'checks': checks}
 
@@ -32,8 +33,22 @@ def format_report(results, timestamp):
     lines = [f'Home Lab Status — {timestamp}', '-' * 60]
     for device in results:
         lines.append(f"{'OK  ' if device['ok'] else 'FAIL'}  {device['name']}")
+        resources = []
         for c in device['checks']:
-            lines.append(f"    {'WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL'} {c['name']}: {c['details']}")
+            details = c['details']
+            if c.get('resource') and c['ok']:
+                if c.get('warning'):
+                    warning, _, details = details.partition('. ')
+                    lines.append(f"    WARN {c['name']}: {warning.removeprefix('WARNING: ')}")
+                resources.append((c['name'], details))
+                continue
+            lines.append(f"    {'WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL'} {c['name']}: {details}")
+        if resources:
+            lines.append('    Resources:')
+            for name, details in resources:
+                lines.append(f'        {name}:')
+                for reading in details.split('; '):
+                    lines.append(f'            {reading}')
     n = sum(not x['ok'] for x in results)
     lines.append('-' * 60)
     lines.append(f'{len(results) - n}/{len(results)} devices healthy; {n} failing')
