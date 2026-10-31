@@ -115,14 +115,14 @@ Add this check to your router's `checks` list (also included in `example_config.
   "name": "MikroTik resources",
   "type": "mikrotik",
   "url": "https://192.168.0.1",
-  "cafile": "/home/aaron/cert_export_homelab-ca.crt",
+  "cafile": "cert_export_homelab-ca.crt",
   "cpu_warn_percent": 80,
   "memory_warn_percent": 85,
   "disk_warn_percent": 90
 }
 ```
 
-Use a URL hostname or IP covered by the router certificate. The CA path above is the default; override `cafile` when running elsewhere, including Windows. Thresholds are configurable starting points for CPU load, memory used, and disk used, not manufacturer limits. Values strictly above a threshold produce `WARN`, retain a healthy exit status, and trigger a notification when entering or leaving warning state. API, authentication, TLS, and malformed resource responses fail the check. Reports display CPU, memory, disk, and available model, version, and uptime fields.
+Use a URL hostname or IP covered by the router certificate. Relative CA paths resolve from the project folder containing `monitor.py`, regardless of the working directory. Place `cert_export_homelab-ca.crt` there, or set `cafile` to another relative or absolute path. Thresholds are configurable starting points for CPU load, memory used, and disk used, not manufacturer limits. Values strictly above a threshold produce `WARN`, retain a healthy exit status, and trigger a notification when entering or leaving warning state. API, authentication, TLS, and malformed resource responses fail the check. Reports display CPU, memory, disk, and available model, version, and uptime fields.
 
 Set credentials in the process environment before running the monitor:
 

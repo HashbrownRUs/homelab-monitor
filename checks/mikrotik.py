@@ -3,10 +3,14 @@ import base64
 import json
 import math
 import os
+from pathlib import Path
 import ssl
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -37,9 +41,12 @@ def mikrotik(item, timeout):
         raise ValueError('Set MikroTik username and password environment variables')
     if ':' in username:
         raise ValueError('MikroTik username cannot contain a colon')
+    cafile = Path(item.get('cafile', 'cert_export_homelab-ca.crt'))
+    if not cafile.is_absolute():
+        cafile = BASE_DIR / cafile
     try:
         context = ssl.create_default_context(
-            cafile=item.get('cafile', '/home/aaron/cert_export_homelab-ca.crt')
+            cafile=str(cafile)
         )
         token = base64.b64encode(f'{username}:{password}'.encode('utf-8')).decode('ascii')
         request = urllib.request.Request(url, headers={

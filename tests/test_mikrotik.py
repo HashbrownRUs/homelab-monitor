@@ -1,6 +1,7 @@
-﻿import io
+import io
 import json
 import os
+from pathlib import Path
 import ssl
 import unittest
 import urllib.error
@@ -11,7 +12,7 @@ import monitor
 
 class MikroTikTests(unittest.TestCase):
     def setUp(self):
-        self.item = {'type': 'mikrotik', 'url': 'https://router', 'cafile': '/test/ca.crt'}
+        self.item = {'type': 'mikrotik', 'url': 'https://router', 'cafile': str(Path(__file__).resolve().parent.parent / 'test-ca.crt')}
         self.resource = {'cpu-load': '10', 'free-memory': '50', 'total-memory': '100',
                          'free-hdd-space': '90', 'total-hdd-space': '100',
                          'uptime': '1d', 'version': '7', 'board-name': 'router'}
@@ -34,7 +35,7 @@ class MikroTikTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn('Memory 50.0%', details)
         self.assertIn('uptime: 1d', details)
-        self.tls.assert_called_once_with(cafile='/test/ca.crt')
+        self.tls.assert_called_once_with(cafile=str(Path(__file__).resolve().parent.parent / 'test-ca.crt'))
         request = self.opener.open.call_args.args[0]
         self.assertEqual(request.full_url, 'https://router/rest/system/resource')
         self.assertEqual(request.get_header('Authorization'), 'Basic bW9uaXRvcjpzZWNyZXQ=')
@@ -81,7 +82,13 @@ class MikroTikTests(unittest.TestCase):
         item = dict(self.item)
         del item['cafile']
         monitor.execute(item, 2)
-        self.tls.assert_called_once_with(cafile='/home/aaron/cert_export_homelab-ca.crt')
+        self.tls.assert_called_once_with(cafile=str(Path(__file__).resolve().parent.parent / 'cert_export_homelab-ca.crt'))
+
+    def test_relative_ca(self):
+        self.respond()
+        monitor.execute(dict(self.item, cafile='certs/custom.crt'), 2)
+        self.tls.assert_called_once_with(
+            cafile=str(Path(__file__).resolve().parent.parent / 'certs/custom.crt'))
 
     def test_missing_credentials(self):
         with patch.dict(os.environ, {}, clear=True):
