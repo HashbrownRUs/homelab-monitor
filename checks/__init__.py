@@ -41,7 +41,7 @@ def web_result(plain, secure):
     secure_ok, secure_details = secure
     details = f'HTTP port 80: {plain_details}; HTTPS port 443: {secure_details}'
     if not plain_ok and secure_ok:
-        return True, f'WARNING: HTTP port 80 may be disabled on purpose. {details}'
+        return True, 'WARNING: HTTP port 80 is unavailable (Intent disabled); HTTPS port 443 is responding'
     if plain_ok and not secure_ok:
         return True, f'WARNING: HTTPS port 443 check failed. {details}'
     return plain_ok or secure_ok, details

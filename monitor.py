@@ -42,7 +42,14 @@ def format_report(results, timestamp):
                     lines.append(f"    WARN {c['name']}: {warning.removeprefix('WARNING: ')}")
                 resources.append((c['name'], details))
                 continue
-            lines.append(f"    {'WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL'} {c['name']}: {details}")
+            status = 'WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL'
+            if '; HTTPS port 443:' in details:
+                lines.append(f"    {status} {c['name']}:")
+                plain, secure = details.split('; HTTPS port 443:', 1)
+                lines.append(f'        {plain}')
+                lines.append(f'        HTTPS port 443:{secure}')
+            else:
+                lines.append(f"    {status} {c['name']}: {details}")
         if resources:
             lines.append('    Resources:')
             for name, details in resources:
