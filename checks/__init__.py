@@ -1,5 +1,5 @@
 # File: __init__.py
-# Last updated: 2026-11-06
+# Last updated: 2026-11-07
 # Description: Dispatch device checks and apply the HTTP/HTTPS availability policy.
 from urllib.parse import urlsplit, urlunsplit
 
@@ -7,6 +7,7 @@ from .mikrotik import mikrotik, mikrotik_ping
 from .http import http
 from .ping import ping
 from .tcp import tcp
+from .ssh_ping import ssh_ping
 
 
 def execute(item, timeout):
@@ -17,6 +18,8 @@ def execute(item, timeout):
         return mikrotik_ping(item, timeout)
     if kind == 'ping':
         return ping(item['host'], timeout)
+    if kind == 'ssh_ping':
+        return ssh_ping(item, timeout)
     if kind == 'tcp':
         host, port = item['host'], int(item['port'])
         primary = tcp(host, port, timeout)

@@ -2,6 +2,13 @@
   "timeout_seconds": 10,
   "devices": [
     {
+      "name": "Monitoring_Server",
+      "checks": [
+        {"name": "Internet via 1.1.1.1", "type": "ssh_ping", "ssh_host": "192.168.88.254", "ssh_user": "monitor", "host": "1.1.1.1", "count": 4},
+        {"name": "Internet via 8.8.8.8", "type": "ssh_ping", "ssh_host": "192.168.88.254", "ssh_user": "monitor", "host": "8.8.8.8", "count": 4}
+      ]
+    },
+    {
       "name": "Router",
       "checks": [
         {"name": "Internet from router to 1.1.1.1", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "1.1.1.1", "count": 3, "cafile": "cert_export_homelab-ca.crt"},
