@@ -1,3 +1,7 @@
+# File: test_mikrotik.py
+# Last updated: 2026-11-06
+# Description: Test MikroTik resource checks, TLS validation, and error handling.
+
 import io
 import json
 import os

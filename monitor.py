@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Cross-platform home-lab monitor: ICMP, TCP, HTTP(S), stateful webhook alerts."""
+# File: monitor.py
+# Last updated: 2026-11-06
+# Description: Run device checks, format status reports, and send webhook alerts.
+
 import argparse
 import concurrent.futures
 import datetime as dt

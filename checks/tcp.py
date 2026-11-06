@@ -1,5 +1,8 @@
-import socket
+# File: tcp.py
+# Last updated: 2026-11-06
+# Description: Check whether a TCP port accepts connections.
 
+import socket
 
 def tcp(host, port, timeout):
     try:

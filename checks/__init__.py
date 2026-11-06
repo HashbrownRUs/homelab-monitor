@@ -1,4 +1,6 @@
-"""Check dispatch and the standard HTTP/HTTPS availability policy."""
+# File: __init__.py
+# Last updated: 2026-11-06
+# Description: Dispatch device checks and apply the HTTP/HTTPS availability policy.
 from urllib.parse import urlsplit, urlunsplit
 
 from .mikrotik import mikrotik

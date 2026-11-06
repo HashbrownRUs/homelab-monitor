@@ -1,3 +1,7 @@
+# File: ping.py
+# Last updated: 2026-11-06
+# Description: Check host availability using the system ping command.
+
 import platform
 import subprocess
 

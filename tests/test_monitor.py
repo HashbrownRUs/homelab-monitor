@@ -1,3 +1,7 @@
+# File: test_monitor.py
+# Last updated: 2026-11-06
+# Description: Test device checks, web availability policy, and status reporting.
+
 import unittest
 from unittest.mock import patch, Mock
 import monitor

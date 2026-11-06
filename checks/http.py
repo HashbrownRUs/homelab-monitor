@@ -1,3 +1,7 @@
+# File: http.py
+# Last updated: 2026-11-06
+# Description: Check HTTP and HTTPS endpoint availability.
+
 import ssl
 import urllib.error
 import urllib.request

@@ -1,4 +1,7 @@
-"""Read RouterOS resources over its certificate-verified REST API."""
+# File: mikrotik.py
+# Last updated: 2026-11-06
+# Description: Read MikroTik RouterOS resources over a certificate-verified REST API.
+
 import base64
 import json
 import math
