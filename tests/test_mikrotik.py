@@ -1,6 +1,6 @@
 # File: test_mikrotik.py
 # Last updated: 2026-11-06
-# Description: Test MikroTik resource checks, TLS validation, and error handling.
+# Description: Test MikroTik resource and router ping checks, TLS, and error handling.
 
 import io
 import json
@@ -122,6 +122,54 @@ class MikroTikTests(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True):
             self.assertFalse(monitor.check_device({'name': 'router', 'checks': [self.item]}, 2)['ok'])
         self.opener.open.assert_not_called()
+
+    def test_router_ping_request_and_report(self):
+        item = dict(self.item, type='mikrotik_ping', host='1.1.1.1', count=3)
+        self.respond([{'seq': '0', 'time': '10ms'}, {'seq': '1', 'status': 'timeout'},
+                      {'seq': '2', 'time': '12ms'}])
+        result = monitor.check_device({'name': 'router', 'checks': [item]}, 10)
+        self.assertTrue(result['ok'])
+        self.assertFalse(result['checks'][0]['resource'])
+        self.assertIn('Router ping to 1.1.1.1: 2/3 replies', monitor.format_report([result], 'now'))
+        request = self.opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://router/rest/ping')
+        self.assertEqual(request.get_method(), 'POST')
+        self.assertEqual(json.loads(request.data), {'address': '1.1.1.1', 'count': '3', 'interval': '200ms'})
+        self.assertEqual(request.get_header('Content-type'), 'application/json')
+        self.assertEqual(request.get_header('Authorization'), 'Basic bW9uaXRvcjpzZWNyZXQ=')
+        self.tls.assert_called_once_with(cafile=self.item['cafile'])
+        self.assertEqual(self.opener.open.call_args.kwargs['timeout'], 10)
+
+    def test_router_ping_no_replies_and_malformed_response(self):
+        item = dict(self.item, type='mikrotik_ping', host='8.8.8.8')
+        self.respond([{'seq': str(i), 'status': 'timeout'} for i in range(3)])
+        self.assertEqual(monitor.execute(item, 10), (False, 'Router ping to 8.8.8.8: 0/3 replies'))
+        for response in [[], {}, [{'seq': '0'}], ['invalid']]:
+            with self.subTest(response=response):
+                self.respond(response)
+                self.assertFalse(monitor.execute(item, 10)[0])
+
+    def test_router_ping_configuration(self):
+        item = dict(self.item, type='mikrotik_ping', host='1.1.1.1')
+        for override in [{'count': 0}, {'count': 11}, {'count': True}, {'count': 1.5},
+                         {'host': []}, {'url': 'http://router'}, {'url': 'https://user:secret@router'}]:
+            with self.subTest(override=override):
+                self.assertFalse(monitor.check_device({'name': 'router', 'checks': [dict(item, **override)]}, 10)['ok'])
+        self.opener.open.assert_not_called()
+        self.respond([{'seq': '0', 'time': '1ms'}])
+        self.assertTrue(monitor.execute(dict(item, url='https://router/rest/', count=1), 10)[0])
+        self.assertEqual(self.opener.open.call_args.args[0].full_url, 'https://router/rest/ping')
+
+    def test_router_ping_api_and_tls_errors(self):
+        item = dict(self.item, type='mikrotik_ping', host='1.1.1.1')
+        for error in [ssl.SSLError('secret'), TimeoutError('secret'),
+                      urllib.error.HTTPError('https://router', 403, 'secret', {}, None)]:
+            with self.subTest(error=error):
+                self.opener.open.side_effect = error
+                ok, details = monitor.execute(item, 10)
+                self.assertFalse(ok)
+                self.assertNotIn('secret', details)
+
 
 
 if __name__ == '__main__':

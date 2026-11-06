@@ -1,6 +1,6 @@
 # File: mikrotik.py
 # Last updated: 2026-11-06
-# Description: Read MikroTik RouterOS resources over a certificate-verified REST API.
+# Description: Read RouterOS resources and run router pings over a verified REST API.
 
 import base64
 import json
@@ -21,6 +21,31 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def rest_request(item, url, timeout, payload=None):
+    """Send an authenticated RouterOS request with CA verification and no redirects."""
+    username = os.environ.get(item.get('username_env', 'MIKROTIK_USERNAME'))
+    password = os.environ.get(item.get('password_env', 'MIKROTIK_PASSWORD'))
+    if not username or not password:
+        raise ValueError('Set MikroTik username and password environment variables')
+    if ':' in username:
+        raise ValueError('MikroTik username cannot contain a colon')
+    cafile = Path(item.get('cafile', 'cert_export_homelab-ca.crt'))
+    if not cafile.is_absolute():
+        cafile = BASE_DIR / cafile
+    context = ssl.create_default_context(cafile=str(cafile))
+    token = base64.b64encode(f'{username}:{password}'.encode('utf-8')).decode('ascii')
+    headers = {'Authorization': f'Basic {token}', 'Accept': 'application/json',
+               'User-Agent': 'HomelabMonitor/1.0'}
+    data = None
+    if payload is not None:
+        headers['Content-Type'] = 'application/json'
+        data = json.dumps(payload).encode('utf-8')
+    request = urllib.request.Request(url, headers=headers, data=data)
+    opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=context), NoRedirect())
+    with opener.open(request, timeout=timeout) as response:
+        return json.load(response)
+
+
 def mikrotik(item, timeout):
     url = item['url'].rstrip('/')
     parsed = urlsplit(url)
@@ -38,27 +63,8 @@ def mikrotik(item, timeout):
         if not math.isfinite(value) or not 0 <= value <= 100:
             raise ValueError(f'{name}_warn_percent must be between 0 and 100')
         thresholds[name] = value
-    username = os.environ.get(item.get('username_env', 'MIKROTIK_USERNAME'))
-    password = os.environ.get(item.get('password_env', 'MIKROTIK_PASSWORD'))
-    if not username or not password:
-        raise ValueError('Set MikroTik username and password environment variables')
-    if ':' in username:
-        raise ValueError('MikroTik username cannot contain a colon')
-    cafile = Path(item.get('cafile', 'cert_export_homelab-ca.crt'))
-    if not cafile.is_absolute():
-        cafile = BASE_DIR / cafile
     try:
-        context = ssl.create_default_context(
-            cafile=str(cafile)
-        )
-        token = base64.b64encode(f'{username}:{password}'.encode('utf-8')).decode('ascii')
-        request = urllib.request.Request(url, headers={
-            'Authorization': f'Basic {token}', 'Accept': 'application/json',
-            'User-Agent': 'HomelabMonitor/1.0',
-        })
-        opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=context), NoRedirect())
-        with opener.open(request, timeout=timeout) as response:
-            resource = json.load(response)
+        resource = rest_request(item, url, timeout)
         if isinstance(resource, list) and len(resource) == 1:
             resource = resource[0]
         if not isinstance(resource, dict):
@@ -92,3 +98,40 @@ def mikrotik(item, timeout):
     except (OSError, ValueError, KeyError, TypeError) as exc:
         # Do not include exception text that might contain authentication data.
         return False, f'MikroTik resource check failed ({type(exc).__name__}); check CA, connectivity, and resource response'
+
+
+def mikrotik_ping(item, timeout):
+    """Ask the router to ping a target; at least one reply is required."""
+    url = item['url'].rstrip('/')
+    parsed = urlsplit(url)
+    if (parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password
+            or parsed.query or parsed.fragment or parsed.path not in ('', '/', '/rest')):
+        raise ValueError('MikroTik ping url must be an HTTPS router base URL or /rest without credentials')
+    host = item['host']
+    if not isinstance(host, str) or not host.strip():
+        raise ValueError('MikroTik ping host must be a nonempty string')
+    count = item.get('count', 3)
+    if isinstance(count, bool) or not isinstance(count, int) or not 1 <= count <= 10:
+        raise ValueError('MikroTik ping count must be an integer between 1 and 10')
+    endpoint = url + ('/ping' if parsed.path == '/rest' else '/rest/ping')
+    try:
+        rows = rest_request(item, endpoint, timeout,
+                            {'address': host, 'count': str(count), 'interval': '200ms'})
+        if not isinstance(rows, list) or not rows or len(rows) > count:
+            raise ValueError('Invalid ping response')
+        received = 0
+        for row in rows:
+            if not isinstance(row, dict) or 'seq' not in row:
+                raise ValueError('Invalid ping response row')
+            if 'time' in row and 'status' not in row:
+                received += 1
+            elif 'status' not in row:
+                raise ValueError('Missing ping result')
+        return received > 0, f'Router ping to {host}: {received}/{count} replies'
+    except urllib.error.HTTPError as exc:
+        code = exc.code
+        exc.close()
+        hint = ' (check router user permissions: read, test, api, rest-api)' if code == 403 else ''
+        return False, f'MikroTik ping REST HTTP {code}{hint}'
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        return False, f'MikroTik ping check failed ({type(exc).__name__}); check CA, connectivity, credentials, and ping response'

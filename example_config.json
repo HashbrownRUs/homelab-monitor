@@ -4,6 +4,8 @@
     {
       "name": "Router",
       "checks": [
+        {"name": "Internet from router to 1.1.1.1", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "1.1.1.1", "count": 3, "cafile": "cert_export_homelab-ca.crt"},
+        {"name": "Internet from router to 8.8.8.8", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "8.8.8.8", "count": 3, "cafile": "cert_export_homelab-ca.crt"},
         {
           "name": "Gateway ping",
           "type": "ping",

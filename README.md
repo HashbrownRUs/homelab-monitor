@@ -34,6 +34,7 @@ Each device needs a `name` and a nonempty `checks` list. Supported check types:
 | Type | Required fields | Healthy when |
 | --- | --- | --- |
 | `ping` | `host` | The host replies to ping |
+| `mikrotik_ping` | `url`, `host` | The router receives at least one ping reply |
 | `tcp` | `host`, `port` | A TCP connection succeeds |
 | `mikrotik` | `url` (HTTPS router base URL) | REST resources can be read; high usage produces warnings |
 | `http` | `url` | HTTP status is 200–399, 401, or 403 |
@@ -152,3 +153,34 @@ MIKROTIK_PASSWORD=your-password
 ```
 
 You can also set `HOMELAB_WEBHOOK_URL` in this file.
+
+## Internet pings from the router
+
+Use `mikrotik_ping` to send ICMP packets from the MikroTik router through its REST API.
+Ordinary `ping` checks still run on the monitoring server.
+
+```json
+{
+  "name": "Internet from router to 1.1.1.1",
+  "type": "mikrotik_ping",
+  "url": "https://192.168.88.1",
+  "host": "1.1.1.1",
+  "count": 3,
+  "cafile": "cert_export_homelab-ca.crt"
+}
+```
+
+Add a separate check for `8.8.8.8`; both checks are included in the configuration files.
+Each check passes if at least one packet receives a reply. All checks must pass for the device to be healthy.
+`count` defaults to 3 and must be an integer from 1 to 10. The configured `timeout_seconds`
+also limits the REST request; allow enough time for all packets when increasing `count`.
+The check reuses `MIKROTIK_USERNAME`, `MIKROTIK_PASSWORD`, and CA verification from resource monitoring,
+including optional `username_env` and `password_env` overrides. The router user group needs
+`read`, `test`, `api`, and `rest-api` policies; ping requires `test`.
+See the [MikroTik REST documentation](https://manual.mikrotik.com/docs/developer-guides/rest-api/).
+
+Example output:
+
+```text
+    OK   Internet from router to 1.1.1.1: Router ping to 1.1.1.1: 3/3 replies
+```

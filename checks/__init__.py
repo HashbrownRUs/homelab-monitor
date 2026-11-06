@@ -3,7 +3,7 @@
 # Description: Dispatch device checks and apply the HTTP/HTTPS availability policy.
 from urllib.parse import urlsplit, urlunsplit
 
-from .mikrotik import mikrotik
+from .mikrotik import mikrotik, mikrotik_ping
 from .http import http
 from .ping import ping
 from .tcp import tcp
@@ -13,6 +13,8 @@ def execute(item, timeout):
     kind = item['type'].lower()
     if kind == 'mikrotik':
         return mikrotik(item, timeout)
+    if kind == 'mikrotik_ping':
+        return mikrotik_ping(item, timeout)
     if kind == 'ping':
         return ping(item['host'], timeout)
     if kind == 'tcp':
