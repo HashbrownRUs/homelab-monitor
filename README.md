@@ -34,6 +34,7 @@ Each device needs a `name` and a nonempty `checks` list. Supported check types:
 | Type | Required fields | Healthy when |
 | --- | --- | --- |
 | `ping` | `host` | The host replies to ping |
+| `snmp` | ASUSTOR environment variables below | All three system OIDs respond over SNMPv3 |
 | `ssh_ping` | `ssh_host`, `host` (IPv4 address) | Remote Windows host receives at least one echo reply |
 | `mikrotik_ping` | `url`, `host` | The router receives at least one ping reply |
 | `tcp` | `host`, `port` | A TCP connection succeeds |
@@ -103,7 +104,7 @@ On Windows, use Task Scheduler to run Python with the full path to `monitor.py` 
 ## Tests
 
 ```bash
-python -m unittest test_monitor.py
+python -m unittest discover -s tests -v
 ```
 
 Tests verify ping platform handling, web port availability combinations, HTTPS fallback, and warning reports without contacting devices.
@@ -154,6 +155,44 @@ MIKROTIK_PASSWORD=your-password
 ```
 
 You can also set `HOMELAB_WEBHOOK_URL` in this file.
+
+## ASUSTOR NAS SNMPv3
+
+The NAS entry includes an `snmp` check based on the supplied test script. Install
+dependencies with `python -m pip install -r requirements.txt` and add these values
+to `.env` beside `monitor.py`:
+
+```dotenv
+ASUSTOR_SNMP_HOST=192.168.88.253
+ASUSTOR_SNMP_PORT=161
+ASUSTOR_SNMP_USERNAME=your-snmp-user
+ASUSTOR_SNMP_PASSWORD=your-snmp-auth-password
+```
+
+Enable SNMPv3 on the NAS with MD5 authentication and no privacy encryption
+(`authNoPriv`), matching the test script. Allow UDP port 161 from the monitoring
+server. Run `python monitor.py` to include system description, uptime, and name
+in the normal report, JSON output, and failure/recovery notifications. All three
+OIDs must succeed. Each request uses `timeout_seconds` and one retry.
+
+To test the NAS directly on Windows using the PySNMP Python package, run from
+the project folder in PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe .\tests\snmp_windows.py
+```
+
+The script loads the project-root `.env` regardless of the working directory.
+It queries the real NAS and prints each OID result. No Windows SNMP feature or
+external SNMP command is required. Exit codes are `0` for success, `1` for SNMP
+failure, and `2` for invalid configuration. This live script runs separately
+from `test_snmp.py`, whose unit tests use simulated responses.
+
+Optional check fields `host` and `port` override the environment defaults;
+`username_env` and `password_env` select alternate credential variables.
+Uptime is reported in the NAS's raw SNMP TimeTicks representation (hundredths of
+a second). Credentials stay in the environment and are excluded from reports.
 
 ## Internet pings from the VM host over SSH
 

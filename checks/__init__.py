@@ -1,5 +1,6 @@
 # File: __init__.py
-# Last updated: 2026-11-07
+# Last updated: 2026-11-10
+# Change: Register SNMPv3 NAS monitoring.
 # Description: Dispatch device checks and apply the HTTP/HTTPS availability policy.
 from urllib.parse import urlsplit, urlunsplit
 
@@ -8,10 +9,13 @@ from .http import http
 from .ping import ping
 from .tcp import tcp
 from .ssh_ping import ssh_ping
+from .snmp import snmp
 
 
 def execute(item, timeout):
     kind = item['type'].lower()
+    if kind == 'snmp':
+        return snmp(item, timeout)
     if kind == 'mikrotik':
         return mikrotik(item, timeout)
     if kind == 'mikrotik_ping':

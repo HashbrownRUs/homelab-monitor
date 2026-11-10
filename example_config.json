@@ -38,6 +38,7 @@
     {
       "name": "NAS",
       "checks": [
+        {"name": "ASUSTOR SNMP system", "type": "snmp"},
         {
           "name": "NAS reachable",
           "type": "ping",
