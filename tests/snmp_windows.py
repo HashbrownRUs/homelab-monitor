@@ -1,11 +1,15 @@
 # File: snmp_windows.py
 # Last updated: 2026-11-11
-# Change: Move the live test into tests and load .env from the project root.
+# Change: Add an optional full ASUSTOR discovery report using the monitoring architecture.
 # Description: Test NAS SNMPv3 MD5 on Windows using the PySNMP Python package.
 
 import asyncio
+import argparse
+import datetime as dt
+import json
 import os
 from pathlib import Path
+import sys
 
 from dotenv import load_dotenv
 
@@ -91,5 +95,28 @@ async def main():
         engine.close_dispatcher()
 
 
+def cli():
+    parser = argparse.ArgumentParser(description='Read-only NAS SNMP test through PySNMP')
+    parser.add_argument('--resources', action='store_true', help='Discover and report all supported NAS metrics')
+    parser.add_argument('--json', action='store_true', help='Print structured resource data (requires --resources)')
+    args = parser.parse_args()
+    if args.json and not args.resources:
+        parser.error('--json requires --resources')
+    if not args.resources:
+        return asyncio.run(main())
+    base = Path(__file__).resolve().parent.parent
+    load_dotenv(base / '.env', override=False)
+    sys.path.insert(0, str(base))
+    from monitor import check_device, format_report
+    result = check_device({'name': 'NAS', 'checks': [
+        {'type': 'snmp', 'resources': True, 'required_interfaces': ['eth0']},
+    ]}, 3)
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(format_report([result], dt.datetime.now().astimezone().isoformat(timespec='seconds')))
+    return 0 if result['ok'] else 1
+
+
 if __name__ == "__main__":
-    raise SystemExit(asyncio.run(main()))
+    raise SystemExit(cli())

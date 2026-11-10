@@ -1,6 +1,6 @@
 # File: snmp.py
 # Last updated: 2026-11-11
-# Change: Use an MD5 SNMPv3 auth object for each device check.
+# Change: Optionally dispatch full ASUSTOR resource and health discovery.
 # Description: Read standard system OIDs using MD5 authentication without privacy.
 
 import asyncio
@@ -15,6 +15,9 @@ OIDS = {
 
 
 def snmp(item, timeout):
+    if item.get('resources', False):
+        from .asustor import asustor
+        return asustor(item, timeout)
     host = item.get('host') or os.getenv('ASUSTOR_SNMP_HOST')
     username = os.getenv(item.get('username_env', 'ASUSTOR_SNMP_USERNAME'))
     password = os.getenv(item.get('password_env', 'ASUSTOR_SNMP_PASSWORD'))

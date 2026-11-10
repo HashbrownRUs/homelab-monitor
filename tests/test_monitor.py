@@ -1,8 +1,11 @@
 # File: test_monitor.py
-# Last updated: 2026-11-06
+# Last updated: 2026-11-11
+# Change: Verify six-report history retention and migration of existing logs.
 # Description: Test device checks, web availability policy, and status reporting.
 
 import unittest
+from pathlib import Path
+import tempfile
 from unittest.mock import patch, Mock
 import monitor
 
@@ -57,6 +60,29 @@ class WebPolicyTests(unittest.TestCase):
     def test_explicit_https_failure(self, tcp):
         self.assertFalse(monitor.execute({'type': 'tcp', 'host': 'router', 'port': 443}, 2)[0])
         tcp.assert_called_once()
+
+
+class ReportHistoryTests(unittest.TestCase):
+    def report(self, index):
+        return monitor.format_report([], f'run-{index}')
+
+    def test_keeps_six_newest_complete_reports_in_order(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            for index in range(10):
+                monitor.save_report(self.report(index), path)
+            entries = monitor.history_reports((path / 'history.log').read_text(encoding='utf-8'))
+            self.assertEqual(entries, [self.report(index) for index in range(4, 10)])
+            self.assertEqual((path / 'latest.log').read_text(encoding='utf-8'), self.report(9) + '\n')
+
+    def test_trims_existing_history_and_preserves_embedded_blank_lines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            old_reports = [self.report(index) + '\nDetails\n\nMore details' for index in range(12)]
+            (path / 'history.log').write_text('\n\n'.join(old_reports) + '\n\n', encoding='utf-8')
+            monitor.save_report(self.report(12), path)
+            entries = monitor.history_reports((path / 'history.log').read_text(encoding='utf-8'))
+            self.assertEqual(entries, old_reports[-5:] + [self.report(12)])
 
 
 if __name__ == '__main__':

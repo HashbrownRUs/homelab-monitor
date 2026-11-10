@@ -1,6 +1,6 @@
 ﻿# Home Lab Monitor
 
-Python 3 home-lab monitor with `.env` support through `python-dotenv`. Checks ICMP ping on Windows and Linux, TCP ports, and HTTP(S) endpoints. Prints a status report and optionally sends webhook alerts when checks fail or recover.
+Python 3.11+ home-lab monitor with `.env` support through `python-dotenv`. Checks ICMP ping on Windows and Linux, TCP ports, HTTP(S) endpoints, and ASUSTOR SNMPv3 resources. Prints a status report and optionally sends webhook alerts when checks fail or recover.
 
 ## Setup
 
@@ -34,7 +34,7 @@ Each device needs a `name` and a nonempty `checks` list. Supported check types:
 | Type | Required fields | Healthy when |
 | --- | --- | --- |
 | `ping` | `host` | The host replies to ping |
-| `snmp` | ASUSTOR environment variables below | All three system OIDs respond over SNMPv3 |
+| `snmp` | Environment variables in the [ASUSTOR guide](docs/asustor-snmp.md) | System OIDs respond; `resources: true` also checks discovered NAS health |
 | `ssh_ping` | `ssh_host`, `host` (IPv4 address) | Remote Windows host receives at least one echo reply |
 | `mikrotik_ping` | `url`, `host` | The router receives at least one ping reply |
 | `tcp` | `host`, `port` | A TCP connection succeeds |
@@ -109,139 +109,29 @@ python -m unittest discover -s tests -v
 
 Tests verify ping platform handling, web port availability combinations, HTTPS fallback, and warning reports without contacting devices.
 
-## MikroTik resource monitoring
-
-Enable the RouterOS REST API through `www-ssl` and use a monitoring account with permission to read system resources. The check performs an authenticated GET to `/rest/system/resource` and validates the server certificate and hostname with your CA. See the [official MikroTik REST documentation](https://manual.mikrotik.com/docs/developer-guides/rest-api/).
-
-Add this check to your router's `checks` list (also included in `example_config.json`):
-
-```json
-{
-  "name": "MikroTik resources",
-  "type": "mikrotik",
-  "url": "https://192.168.0.1",
-  "cafile": "cert_export_homelab-ca.crt",
-  "cpu_warn_percent": 80,
-  "memory_warn_percent": 85,
-  "disk_warn_percent": 90
-}
-```
-
-Use a URL hostname or IP covered by the router certificate. Relative CA paths resolve from the project folder containing `monitor.py`, regardless of the working directory. Place `cert_export_homelab-ca.crt` there, or set `cafile` to another relative or absolute path. Thresholds are configurable starting points for CPU load, memory used, and disk used, not manufacturer limits. Values strictly above a threshold produce `WARN`, retain a healthy exit status, and trigger a notification when entering or leaving warning state. API, authentication, TLS, and malformed resource responses fail the check. Reports display CPU, memory, disk, and available model, version, and uptime fields.
-
-Set credentials in the process environment before running the monitor:
-
-```bash
-export MIKROTIK_USERNAME='monitor'
-export MIKROTIK_PASSWORD='your-password'
-python3 monitor.py
-```
-
-```powershell
-$env:MIKROTIK_USERNAME = 'monitor'
-$env:MIKROTIK_PASSWORD = 'your-password'
-python monitor.py
-```
-
-For multiple routers with different credentials, set `username_env` and `password_env` on each check to the appropriate environment variable names. Run all tests with `python -m unittest discover -v`.
-
 ## Environment file
 
 The monitor automatically loads `.env` beside `monitor.py` before running checks. Existing environment variables take priority. `.env` is already excluded from Git.
 
 ```dotenv
-MIKROTIK_USERNAME=monitor
-MIKROTIK_PASSWORD=your-password
+HOMELAB_WEBHOOK_URL=https://your-webhook-url
 ```
 
-You can also set `HOMELAB_WEBHOOK_URL` in this file.
+Device credential variable names and examples are documented in the [device guides](#device-guides).
 
-## ASUSTOR NAS SNMPv3
 
-The NAS entry includes an `snmp` check based on the supplied test script. Install
-dependencies with `python -m pip install -r requirements.txt` and add these values
-to `.env` beside `monitor.py`:
+## Report logs
 
-```dotenv
-ASUSTOR_SNMP_HOST=192.168.88.253
-ASUSTOR_SNMP_PORT=161
-ASUSTOR_SNMP_USERNAME=your-snmp-user
-ASUSTOR_SNMP_PASSWORD=your-snmp-auth-password
-```
+`monitor.py` automatically generates `latest.log` and `history.log` after each run,
+including runs using `--json`. `latest.log` contains the newest report;
+`history.log` keeps at most the six most recent complete reports, oldest first.
+Existing longer history is trimmed on the next run. Logs are stored beside
+`monitor.py` unless the top-level `log_directory` option is set in `config.json`.
+Relative log directory paths resolve from the project folder. Standalone live
+test scripts do not generate these report logs.
 
-Enable SNMPv3 on the NAS with MD5 authentication and no privacy encryption
-(`authNoPriv`), matching the test script. Allow UDP port 161 from the monitoring
-server. Run `python monitor.py` to include system description, uptime, and name
-in the normal report, JSON output, and failure/recovery notifications. All three
-OIDs must succeed. Each request uses `timeout_seconds` and one retry.
+## Device guides
 
-To test the NAS directly on Windows using the PySNMP Python package, run from
-the project folder in PowerShell:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe .\tests\snmp_windows.py
-```
-
-The script loads the project-root `.env` regardless of the working directory.
-It queries the real NAS and prints each OID result. No Windows SNMP feature or
-external SNMP command is required. Exit codes are `0` for success, `1` for SNMP
-failure, and `2` for invalid configuration. This live script runs separately
-from `test_snmp.py`, whose unit tests use simulated responses.
-
-Optional check fields `host` and `port` override the environment defaults;
-`username_env` and `password_env` select alternate credential variables.
-Uptime is reported in the NAS's raw SNMP TimeTicks representation (hundredths of
-a second). Credentials stay in the environment and are excluded from reports.
-
-## Internet pings from the VM host over SSH
-
-`Monitoring_Server` uses password-authenticated SSH to `monitor@192.168.88.254`
-and runs `ping -n 4 1.1.1.1` and `ping -n 4 8.8.8.8` on that Windows host.
-Install dependencies with `python -m pip install -r requirements.txt`, then fill in
-the entry added to `.env`:
-
-```dotenv
-MONITORING_SERVER_SSH_PASSWORD=your-password
-```
-
-Before running, connect once with `ssh monitor@192.168.88.254` from the monitoring
-VM under the same OS account that runs the script. Verify and accept the server's
-host key so it is saved in `~/.ssh/known_hosts`. Unknown or changed keys fail the check.
-The host must have an SSH server enabled and allow this account to run Windows ping.
-The password is passed directly through the SSH library, never as a command argument.
-`ssh_user` defaults to `monitor`, `ssh_port` to 22, and `count` to 4 (allowed: 1–10).
-Use `password_env` to override the password variable name. Targets must be IPv4
-addresses. Each command allows five seconds per packet plus `timeout_seconds`;
-the latter also controls SSH connection and authentication timeouts.
-
-## Internet pings from the router (REST)
-
-Use `mikrotik_ping` to send ICMP packets from the MikroTik router through its REST API.
-Ordinary `ping` checks still run on the monitoring server.
-
-```json
-{
-  "name": "Internet from router to 1.1.1.1",
-  "type": "mikrotik_ping",
-  "url": "https://192.168.88.1",
-  "host": "1.1.1.1",
-  "count": 3,
-  "cafile": "cert_export_homelab-ca.crt"
-}
-```
-
-Add a separate check for `8.8.8.8`; both checks are included in the configuration files.
-Each check passes if at least one packet receives a reply. All checks must pass for the device to be healthy.
-`count` defaults to 3 and must be an integer from 1 to 10. The configured `timeout_seconds`
-also limits the REST request; allow enough time for all packets when increasing `count`.
-The check reuses `MIKROTIK_USERNAME`, `MIKROTIK_PASSWORD`, and CA verification from resource monitoring,
-including optional `username_env` and `password_env` overrides. The router user group needs
-`read`, `test`, `api`, and `rest-api` policies; ping requires `test`.
-See the [MikroTik REST documentation](https://manual.mikrotik.com/docs/developer-guides/rest-api/).
-
-Example output:
-
-```text
-    OK   Internet from router to 1.1.1.1: Router ping to 1.1.1.1: 3/3 replies
-```
+- [MikroTik configuration](docs/mikrotik.md): router REST resources, credentials, TLS, and internet ping checks.
+- [Windows host monitoring](docs/windows-host.md): remote Windows ping checks over SSH.
+- [ASUSTOR monitoring details](docs/asustor-snmp.md): supported metrics, OIDs, thresholds, and limitations.

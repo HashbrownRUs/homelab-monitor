@@ -11,4 +11,10 @@ __pycache__/
 
 #depenedency files
 .venv/
+.snmp-cache/
+.snmp-discovery.json
+latest.log
+latest.log.tmp
+history.log
+history.log.tmp
 

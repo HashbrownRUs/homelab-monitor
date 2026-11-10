@@ -38,7 +38,13 @@
     {
       "name": "NAS",
       "checks": [
-        {"name": "ASUSTOR SNMP system", "type": "snmp"},
+        {
+          "name": "ASUSTOR SNMP resources", "type": "snmp", "resources": true,
+          "cpu_warn_percent": 80, "memory_warn_percent": 85,
+          "disk_warn_percent": 90, "cpu_temp_warn_c": 80,
+          "system_temp_warn_c": 60, "disk_temp_warn_c": 50,
+          "ups_battery_warn_percent": 20, "required_interfaces": ["eth0"]
+        },
         {
           "name": "NAS reachable",
           "type": "ping",

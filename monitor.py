@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # File: monitor.py
-# Last updated: 2026-11-06
+# Last updated: 2026-11-11
+# Change: Keep only the six most recent reports in history.log.
 # Description: Run device checks, format status reports, and send webhook alerts.
 
 import argparse
@@ -9,6 +10,7 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
+import re
 import sys
 import urllib.request
 
@@ -21,15 +23,26 @@ BASE = Path(__file__).resolve().parent
 
 def check_device(device, timeout):
     checks = []
+    resources, coverage, capabilities = [], [], {}
     for item in device['checks']:
         try:
-            ok, details = execute(item, timeout)
+            result = execute(item, timeout)
+            if isinstance(result, dict):
+                checks.extend(result['checks'])
+                resources.extend(result.get('resources', []))
+                coverage.extend(result.get('coverage', []))
+                capabilities.update(result.get('capabilities', {}))
+                continue
+            ok, details = result
         except (KeyError, ValueError, TypeError, AttributeError) as exc:
             ok, details = False, f'Invalid configuration: {exc}'
         checks.append({'resource': item.get('type', '').lower() == 'mikrotik',
                        'name': item.get('name', item.get('type', 'unnamed')),
                        'ok': ok, 'warning': ok and details.startswith('WARNING:'), 'details': details})
-    return {'name': device['name'], 'ok': all(c['ok'] for c in checks), 'checks': checks}
+    result = {'name': device['name'], 'ok': all(c['ok'] is not False for c in checks), 'checks': checks}
+    if resources or coverage or capabilities:
+        result.update(resources=resources, coverage=coverage, capabilities=capabilities)
+    return result
 
 
 def format_report(results, timestamp):
@@ -45,24 +58,46 @@ def format_report(results, timestamp):
                     lines.append(f"    WARN {c['name']}: {warning.removeprefix('WARNING: ')}")
                 resources.append((c['name'], details))
                 continue
-            status = 'WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL'
+            status = c.get('status') or ('WARN' if c.get('warning') else 'OK  ' if c['ok'] else 'FAIL')
             if '; HTTPS port 443:' in details:
                 lines.append(f"    {status} {c['name']}:")
                 plain, secure = details.split('; HTTPS port 443:', 1)
                 lines.append(f'        {plain}')
                 lines.append(f'        HTTPS port 443:{secure}')
             else:
-                lines.append(f"    {status} {c['name']}: {details}")
-        if resources:
+                lines.append(f"    {status:<4} {c['name']}: {details}")
+        if resources or device.get('resources'):
             lines.append('    Resources:')
             for name, details in resources:
                 lines.append(f'        {name}:')
                 for reading in details.split('; '):
                     lines.append(f'            {reading}')
+            for reading in device.get('resources', []):
+                lines.append(f"        {reading['name']}: {reading['display']}")
     n = sum(not x['ok'] for x in results)
     lines.append('-' * 60)
     lines.append(f'{len(results) - n}/{len(results)} devices healthy; {n} failing')
     return '\n'.join(lines)
+
+
+def history_reports(text):
+    """Split at report headers so blank lines inside a report stay intact."""
+    return [entry.strip() for entry in re.split(r'(?m)(?=^Home Lab Status )', text) if entry.strip()]
+
+
+def save_report(report, directory):
+    """Replace latest.log and retain the six most recent reports in history.log."""
+    directory.mkdir(parents=True, exist_ok=True)
+    latest = directory / 'latest.log'
+    temporary = directory / 'latest.log.tmp'
+    temporary.write_text(report + '\n', encoding='utf-8')
+    temporary.replace(latest)
+    history = directory / 'history.log'
+    entries = history_reports(history.read_text(encoding='utf-8')) if history.exists() else []
+    entries.append(report.strip())
+    temporary = directory / 'history.log.tmp'
+    temporary.write_text('\n\n'.join(entries[-6:]) + '\n\n', encoding='utf-8')
+    temporary.replace(history)
 
 
 def send_webhook(url, message, timeout):
@@ -93,6 +128,9 @@ def main():
         timeout = float(config.get('timeout_seconds', 3))
         if not 0 < timeout < float('inf'):
             raise ValueError('timeout_seconds must be positive and finite')
+        log_directory = Path(config.get('log_directory', BASE))
+        if not log_directory.is_absolute():
+            log_directory = BASE / log_directory
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f'Configuration error: {exc}', file=sys.stderr)
         return 2
@@ -106,14 +144,18 @@ def main():
     else:
         print(report)
 
-    current = {d['name']: {c['name']: ('warning' if c.get('warning') else c['ok']) for c in d['checks']} for d in results}
+    try:
+        save_report(report, log_directory)
+    except OSError as exc:
+        print(f'Unable to save report logs: {exc}', file=sys.stderr)
+
+    current = {d['name']: {c['name']: (c.get('status') or ('warning' if c.get('warning') else c['ok'])) for c in d['checks']} for d in results}
     try:
         previous = json.loads(args.state.read_text(encoding='utf-8')) if args.state.exists() else {}
     except (OSError, ValueError):
         previous = {}
     webhook = os.environ.get('HOMELAB_WEBHOOK_URL', '')
-    if webhook and (args.notify_all or any(previous.get(name, {}).get(check) != ok
-                    for name, checks in current.items() for check, ok in checks.items())):
+    if webhook and (args.notify_all or previous != current):
         try:
             send_webhook(webhook, report, timeout)
         except Exception as exc:
