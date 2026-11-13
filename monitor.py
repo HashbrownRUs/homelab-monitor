@@ -2,7 +2,10 @@
 # File: monitor.py
 # Last updated: 2026-11-11
 # Change: Keep only the six most recent reports in history.log.
-# Description: Run device checks, format status reports, and send webhook alerts.
+# Description: Monitor home-lab devices and services with concurrent health checks,
+# print text or JSON results, save latest.log and the six most recent reports in
+# history.log, track check status, and send webhook alerts when status changes
+# or notifications are requested for every run.
 
 import argparse
 import concurrent.futures
