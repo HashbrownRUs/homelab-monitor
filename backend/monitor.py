@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # File: monitor.py
-# Last updated: 2026-11-11
-# Change: Keep only the six most recent reports in history.log.
+# Last updated: 2026-11-16
+# Change: Display readable report dates with seconds and the UTC offset.
 # Description: Monitor home-lab devices and services with concurrent health checks,
 # print text or JSON results, save latest.log and the six most recent reports in
 # history.log, track check status, and send webhook alerts when status changes
@@ -140,8 +140,10 @@ def main():
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(devices))) as pool:
         results = list(pool.map(lambda d: check_device(d, timeout), devices))
-    stamp = dt.datetime.now().astimezone().isoformat(timespec='seconds')
-    report = format_report(results, stamp)
+    now = dt.datetime.now().astimezone()
+    stamp = now.isoformat(timespec='seconds')
+    readable_stamp = now.strftime('%a, %d %b %Y at %H:%M:%S') + f' (UTC{stamp[-6:]})'
+    report = format_report(results, readable_stamp)
     if args.json:
         print(json.dumps({'timestamp': stamp, 'devices': results}, indent=2))
     else:
