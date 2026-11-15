@@ -7,7 +7,7 @@ See the [project README](../README.md) for general setup, scheduling, and loggin
 
 Enable the RouterOS REST API through `www-ssl` and use a monitoring account with permission to read system resources. The check performs an authenticated GET to `/rest/system/resource` and validates the server certificate and hostname with your CA. See the [official MikroTik REST documentation](https://manual.mikrotik.com/docs/developer-guides/rest-api/).
 
-Add this check to your router's `checks` list (also included in `example_config.json`):
+Add this check to your router's `checks` list (also included in `backend/example_config.json`):
 
 ```json
 {
@@ -21,23 +21,23 @@ Add this check to your router's `checks` list (also included in `example_config.
 }
 ```
 
-Use a URL hostname or IP covered by the router certificate. Relative CA paths resolve from the project folder containing `monitor.py`, regardless of the working directory. Place `cert_export_homelab-ca.crt` there, or set `cafile` to another relative or absolute path. Thresholds are configurable starting points for CPU load, memory used, and disk used, not manufacturer limits. Values strictly above a threshold produce `WARN`, retain a healthy exit status, and trigger a notification when entering or leaving warning state. API, authentication, TLS, and malformed resource responses fail the check. Reports display CPU, memory, disk, and available model, version, and uptime fields.
+Use a URL hostname or IP covered by the router certificate. Relative CA paths resolve from the backend folder containing `monitor.py`, regardless of the working directory. Place `cert_export_homelab-ca.crt` there, or set `cafile` to another relative or absolute path. Thresholds are configurable starting points for CPU load, memory used, and disk used, not manufacturer limits. Values strictly above a threshold produce `WARN`, retain a healthy exit status, and trigger a notification when entering or leaving warning state. API, authentication, TLS, and malformed resource responses fail the check. Reports display CPU, memory, disk, and available model, version, and uptime fields.
 
-Set `MIKROTIK_USERNAME` and `MIKROTIK_PASSWORD` in the project-root `.env` file or process environment before running the monitor:
+Set `MIKROTIK_USERNAME` and `MIKROTIK_PASSWORD` in the `backend/.env` file or process environment before running the monitor:
 
 ```bash
 export MIKROTIK_USERNAME='monitor'
 export MIKROTIK_PASSWORD='your-password'
-python3 monitor.py
+python3 backend/monitor.py
 ```
 
 ```powershell
 $env:MIKROTIK_USERNAME = 'monitor'
 $env:MIKROTIK_PASSWORD = 'your-password'
-python monitor.py
+python backend/monitor.py
 ```
 
-For multiple routers with different credentials, set `username_env` and `password_env` on each check to the appropriate environment variable names. Run all tests with `python -m unittest discover -s tests -v`.
+For multiple routers with different credentials, set `username_env` and `password_env` on each check to the appropriate environment variable names. From the `backend` directory, run all tests with `python -m unittest discover -s tests -v`.
 
 ## Internet pings from the router (REST)
 

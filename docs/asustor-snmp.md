@@ -2,7 +2,7 @@
 
 The NAS check uses SNMPv3 MD5 `authNoPriv` with the existing
 `ASUSTOR_SNMP_HOST`, `ASUSTOR_SNMP_PORT`, `ASUSTOR_SNMP_USERNAME`, and
-`ASUSTOR_SNMP_PASSWORD` environment variables. `monitor.py` loads the project
+`ASUSTOR_SNMP_PASSWORD` environment variables. `backend/monitor.py` loads the backend
 `.env` once; process environment variables take priority. Credentials are never
 written to reports, logs, or the counter cache. The NAS account must have
 read-only SNMP access; the code sends GET and GETBULK requests only.
@@ -10,7 +10,7 @@ read-only SNMP access; the code sends GET and GETBULK requests only.
 ## Connection setup
 
 The NAS entry includes an `snmp` check based on the supplied test script. Install
-dependencies with `python -m pip install -r requirements.txt` and add these values
+dependencies with `python -m pip install -r backend/requirements.txt` and add these values
 to `.env` beside `monitor.py`:
 
 ```dotenv
@@ -29,7 +29,7 @@ three-OID check.
 
 Enable SNMPv3 on the NAS with MD5 authentication and no privacy encryption
 (`authNoPriv`), matching the test script. Allow UDP port 161 from the monitoring
-server. Run `python monitor.py` to include system description, uptime, and name
+server. Run `python backend/monitor.py` to include system description, uptime, and name
 in the normal report, JSON output, and failure/recovery notifications. All three
 OIDs must succeed. Each request uses `timeout_seconds` and one retry.
 
@@ -37,12 +37,12 @@ To test the NAS directly on Windows using the PySNMP Python package, run from
 the project folder in PowerShell:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe .\tests\snmp_windows.py
-.\.venv\Scripts\python.exe .\tests\snmp_windows.py --resources
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+.\.venv\Scripts\python.exe .\script\snmp_windows.py
+.\.venv\Scripts\python.exe .\script\snmp_windows.py --resources
 ```
 
-The script loads the project-root `.env` regardless of the working directory.
+The script loads the `backend/.env` regardless of the working directory.
 It queries the real NAS and prints each OID result. No Windows SNMP feature or
 external SNMP command is required. Exit codes are `0` for success, `1` for SNMP
 failure, and `2` for invalid configuration. This live script runs separately
@@ -62,17 +62,17 @@ the resource report formats uptime as days, hours, minutes, and seconds. Credent
 From the project directory in PowerShell:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe monitor.py
-.\.venv\Scripts\python.exe monitor.py --json
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
+.\.venv\Scripts\python.exe backend/monitor.py
+.\.venv\Scripts\python.exe backend/monitor.py --json
 ```
 
 Test just the NAS resources, without webhook notifications or polling the other
 devices:
 
 ```powershell
-.\.venv\Scripts\python.exe .\tests\snmp_windows.py --resources
-.\.venv\Scripts\python.exe .\tests\snmp_windows.py --resources --json
+.\.venv\Scripts\python.exe .\script\snmp_windows.py --resources
+.\.venv\Scripts\python.exe .\script\snmp_windows.py --resources --json
 ```
 
 Run twice to establish network rates; the first sample deliberately reports
@@ -84,7 +84,8 @@ another working directory.
 Run offline unit tests separately:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+cd backend
+..\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
 Python 3.11 or newer is required for the bounded asynchronous resource polling.
@@ -147,7 +148,7 @@ the report states this limitation. Failed authentication stops discovery.
 and `history.log` (the six most recent reports, oldest first), including when
 `--json` is used. Both files are generated automatically on each monitor run. Set the
 top-level `log_directory` config option to change their directory; relative
-paths resolve from the project root. Log write failures are printed to stderr.
+paths resolve from the backend folder. Log write failures are printed to stderr.
 Existing `state.json`, state-file override, webhook and failure/recovery behavior
 remain; appearance/disappearance of dynamic checks also triggers a state change.
 The direct live-test script does not write those report logs or send webhooks.

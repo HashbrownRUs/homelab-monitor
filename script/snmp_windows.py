@@ -1,6 +1,6 @@
 # File: snmp_windows.py
-# Last updated: 2026-11-11
-# Change: Add an optional full ASUSTOR discovery report using the monitoring architecture.
+# Last updated: 2026-11-15
+# Change: Resolve backend imports and environment after the monorepo reorganization.
 # Description: Test NAS SNMPv3 MD5 on Windows using the PySNMP Python package.
 
 import asyncio
@@ -28,7 +28,7 @@ from pysnmp.proto.rfc1905 import NoSuchObject, NoSuchInstance, EndOfMibView
 
 
 async def main():
-    load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
+    load_dotenv((Path(__file__).resolve().parent.parent / "backend") / ".env", override=False)
     host = os.getenv("ASUSTOR_SNMP_HOST")
     username = os.getenv("ASUSTOR_SNMP_USERNAME")
     password = os.getenv("ASUSTOR_SNMP_PASSWORD")
@@ -104,7 +104,7 @@ def cli():
         parser.error('--json requires --resources')
     if not args.resources:
         return asyncio.run(main())
-    base = Path(__file__).resolve().parent.parent
+    base = (Path(__file__).resolve().parent.parent / "backend")
     load_dotenv(base / '.env', override=False)
     sys.path.insert(0, str(base))
     from monitor import check_device, format_report

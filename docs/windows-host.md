@@ -7,7 +7,7 @@ See the [project README](../README.md) for general setup, scheduling, and loggin
 
 `Monitoring_Server` uses password-authenticated SSH to `monitor@192.168.88.254`
 and runs `ping -n 4 1.1.1.1` and `ping -n 4 8.8.8.8` on that Windows host.
-Install dependencies with `python -m pip install -r requirements.txt`, then fill in
+Install dependencies with `python -m pip install -r backend/requirements.txt`, then fill in
 the entry added to `.env`:
 
 ```dotenv
