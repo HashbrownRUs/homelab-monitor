@@ -38,7 +38,14 @@ Try these commands from the repository root:
 python script/omada_api.py sites
 python script/omada_api.py devices
 python script/omada_api.py clients
+python script/omada_api.py check
 ```
+
+The `check` command reports authentication and sites query results without printing
+tokens or network inventory. When `OMADA_SITE_ID` is set, it also checks devices and
+clients queries; otherwise those queries are skipped. Failures identify the stage
+and HTTP status when available, and return exit code 1. Checks only read data and
+do not assess individual device health.
 
 They display the first page (up to 100 entries) and the API's pagination metadata:
 
@@ -65,6 +72,20 @@ Use `cafile` for a per-check CA path or explicitly `verify_tls: false` for an un
 certificate. A successful check means the API query succeeded, not that every managed
 device is healthy. The report shows the total count and up to five sample names.
 Each run obtains a fresh token; tokens and secrets are never written to logs.
+
+Set `"resources": true` on an Omada check to show returned fields in the monitor's
+Resources section and structured `values` in JSON output. The supplied configuration
+includes sites, devices, and clients checks. Devices and clients require `OMADA_SITE_ID`.
+Sites show name, region, time zone, and scenario when present. Devices show name,
+model, IP, raw status code, firmware, uptime, CPU (`cpuUtil`), and memory (`memUtil`).
+Clients show name, host name, IP, active/wireless flags, AP, SSID, RSSI, and receive/
+transmit rates when returned. Units and status codes are preserved as returned by
+the controller; missing fields are omitted. Each query shows only the first page
+(up to 100 records), with the total count separately. Query success does not imply
+that every device is online. These inventory details are included in saved reports
+and any configured webhook notifications. Text resource lines use a compact summary:
+site name and time zone; device name, IP, CPU, and memory; client name, IP, and SSID.
+The other selected fields remain available in JSON `values`.
 
 Authentication uses `POST /openapi/authorize/token?grant_type=client_credentials`
 with `omadacId`, `client_id`, and `client_secret`, followed by the

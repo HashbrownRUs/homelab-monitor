@@ -91,6 +91,36 @@ def omada(item, timeout):
         names = [str(row.get('name') or row.get('model') or row.get('mac') or 'unnamed')
                  for row in rows[:5]]
         total = result.get('totalRows', len(rows))
+        if item.get('resources', False):
+            fields = {
+                'sites': ('name', 'region', 'timeZone', 'scenario'),
+                'devices': ('name', 'model', 'ip', 'status', 'firmwareVersion',
+                            'uptime', 'cpuUtil', 'memUtil'),
+                'clients': ('name', 'hostName', 'ip', 'active', 'wireless',
+                            'apName', 'ssid', 'rssi', 'rxRate', 'txRate'),
+            }
+            readings = []
+            for index, row in enumerate(rows, 1):
+                values = {key: row[key] for key in fields[resource]
+                          if key in row and isinstance(row[key], (str, int, float, bool))}
+                compact_fields = {
+                    'sites': (('timeZone', 'Time zone'),),
+                    'devices': (('ip', 'IP'), ('cpuUtil', 'CPU'), ('memUtil', 'Memory')),
+                    'clients': (('ip', 'IP'), ('ssid', 'SSID')),
+                }
+                def clean(value):
+                    return str(value).replace('\n', ' ').replace('\r', ' ')
+                display = ' | '.join(f'{label}: {clean(values[key])}'
+                                     for key, label in compact_fields[resource] if key in values)
+                name = clean(values.get('hostName') or values.get('name') or f'Unnamed {index}')
+                category = {'sites': 'Site', 'devices': 'Device', 'clients': 'Client'}[resource]
+                readings.append({'name': f'{category} {name}',
+                                 'display': display or 'No supported fields returned',
+                                 'values': values})
+            return {'checks': [{'name': item.get('name', f'Omada {resource}'),
+                                'ok': True, 'warning': False,
+                                'details': f'OpenAPI: {total} {resource}; showing {len(rows)} (first page, up to 100)'}],
+                    'resources': readings}
         return True, f'Omada OpenAPI: {total} {resource}; sample: {", ".join(names) or "none"}'
     except urllib.error.HTTPError as exc:
         code = exc.code

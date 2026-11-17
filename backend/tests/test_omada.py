@@ -101,6 +101,30 @@ class OmadaTests(unittest.TestCase):
     def test_redirects_are_blocked(self):
         self.assertIsNone(NoRedirect().redirect_request(None, None, 302, '', {}, 'https://other.example'))
 
+    def test_resource_report_exposes_selected_fields_only(self):
+        from monitor import check_device, format_report
+        self.responses({'errorCode': 0, 'result': {'accessToken': 'AT-test'}},
+                       {'errorCode': 0, 'result': {'totalRows': 120, 'data': [
+                           {'name': 'AP', 'ip': '192.168.1.2', 'cpuUtil': 8,
+                            'memUtil': 63, 'status': 1, 'sn': 'private-serial',
+                            'unexpectedSecret': 'private-secret'}]}})
+        result = check_device({'name': 'Controller', 'checks': [
+            {'type': 'omada', 'resource': 'devices', 'resources': True}]}, 3)
+        report = format_report([result], 'now')
+        self.assertTrue(result['ok'])
+        self.assertIn('120 devices; showing 1', report)
+        self.assertIn('CPU: 8', report)
+        self.assertIn('Memory: 63', report)
+        self.assertNotIn('private-', str(result))
+
+    def test_resource_failure_is_reported_as_failed_check(self):
+        from monitor import check_device
+        self.opener.open.side_effect = HTTPError('https://controller.example', 403, 'secret', {}, None)
+        result = check_device({'name': 'Controller', 'checks': [
+            {'type': 'omada', 'resource': 'clients', 'resources': True}]}, 3)
+        self.assertFalse(result['ok'])
+        self.assertIn('HTTP 403', result['checks'][0]['details'])
+
 
 if __name__ == '__main__':
     unittest.main()
