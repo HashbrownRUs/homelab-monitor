@@ -1,6 +1,6 @@
 # File: __init__.py
-# Last updated: 2026-11-10
-# Change: Register SNMPv3 NAS monitoring.
+# Last updated: 2026-11-16
+# Change: Register read-only Omada OpenAPI checks.
 # Description: Dispatch device checks and apply the HTTP/HTTPS availability policy.
 from urllib.parse import urlsplit, urlunsplit
 
@@ -10,10 +10,13 @@ from .ping import ping
 from .tcp import tcp
 from .ssh_ping import ssh_ping
 from .snmp import snmp
+from .omada import omada
 
 
 def execute(item, timeout):
     kind = item['type'].lower()
+    if kind == 'omada':
+        return omada(item, timeout)
     if kind == 'snmp':
         return snmp(item, timeout)
     if kind == 'mikrotik':

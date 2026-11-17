@@ -110,7 +110,7 @@ class MikroTikTests(unittest.TestCase):
         item = dict(self.item)
         del item['cafile']
         monitor.execute(item, 2)
-        self.tls.assert_called_once_with(cafile=str(Path(__file__).resolve().parent.parent / 'cert_export_homelab-ca.crt'))
+        self.tls.assert_called_once_with(cafile=str(Path(__file__).resolve().parent.parent / 'certs/cert_export_homelab-ca.crt'))
 
     def test_relative_ca(self):
         self.respond()

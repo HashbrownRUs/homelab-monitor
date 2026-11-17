@@ -41,6 +41,7 @@ Each device needs a `name` and a nonempty `checks` list. Supported check types:
 | Type | Required fields | Healthy when |
 | --- | --- | --- |
 | `ping` | `host` | The host replies to ping |
+| `omada` | Environment variables in the [Omada guide](docs/omada.md) | A read-only OpenAPI sites, devices, or clients query succeeds |
 | `snmp` | Environment variables in the [ASUSTOR guide](docs/asustor-snmp.md) | System OIDs respond; `resources: true` also checks discovered NAS health |
 | `ssh_ping` | `ssh_host`, `host` (IPv4 address) | Remote Windows host receives at least one echo reply |
 | `mikrotik_ping` | `url`, `host` | The router receives at least one ping reply |

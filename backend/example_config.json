@@ -11,8 +11,8 @@
     {
       "name": "Router",
       "checks": [
-        {"name": "Internet from router to 1.1.1.1", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "1.1.1.1", "count": 3, "cafile": "cert_export_homelab-ca.crt"},
-        {"name": "Internet from router to 8.8.8.8", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "8.8.8.8", "count": 3, "cafile": "cert_export_homelab-ca.crt"},
+        {"name": "Internet from router to 1.1.1.1", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "1.1.1.1", "count": 3, "cafile": "certs/cert_export_homelab-ca.crt"},
+        {"name": "Internet from router to 8.8.8.8", "type": "mikrotik_ping", "url": "https://192.168.0.1", "host": "8.8.8.8", "count": 3, "cafile": "certs/cert_export_homelab-ca.crt"},
         {
           "name": "Gateway ping",
           "type": "ping",
@@ -28,7 +28,7 @@
           "name": "MikroTik resources",
           "type": "mikrotik",
           "url": "https://192.168.0.1",
-          "cafile": "cert_export_homelab-ca.crt",
+          "cafile": "certs/cert_export_homelab-ca.crt",
           "cpu_warn_percent": 80,
           "memory_warn_percent": 85,
           "disk_warn_percent": 90
@@ -95,6 +95,12 @@
     {
       "name": "Omada Controller",
       "checks": [
+        {
+          "name": "Omada sites",
+          "type": "omada",
+          "url": "https://192.168.0.10:8043",
+          "resource": "sites"
+        },
         {
           "name": "Controller reachable",
           "type": "ping",

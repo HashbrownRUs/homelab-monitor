@@ -29,7 +29,7 @@ def rest_request(item, url, timeout, payload=None):
         raise ValueError('Set MikroTik username and password environment variables')
     if ':' in username:
         raise ValueError('MikroTik username cannot contain a colon')
-    cafile = Path(item.get('cafile', 'cert_export_homelab-ca.crt'))
+    cafile = Path(item.get('cafile', 'certs/cert_export_homelab-ca.crt'))
     if not cafile.is_absolute():
         cafile = BASE_DIR / cafile
     context = ssl.create_default_context(cafile=str(cafile))

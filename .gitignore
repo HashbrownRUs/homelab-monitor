@@ -8,6 +8,7 @@ __pycache__/
 
 # Ignore SSL certificate files
 *.crt
+*.pem
 
 #depenedency files
 .venv/
